@@ -1,13 +1,16 @@
 const me = character
 let mob = null
 
-const baseURL = "https://raw.githubusercontent.com/D4ddy-LiLd4rk/AdventureLand/master/";
+const base_url = "https://raw.githubusercontent.com/julienduranleau-sandbox/adventureland/master/main.js"
+const script_name = "Priest"
 
-function update_test() {
-    fetch(file).then(resp.text()).then(script => {
-        upload_code(1, "Priest", script)
+function update_script() {
+    fetch(base_url).then(resp => resp.text()).then(script => {
+        parent.api_call("save_code", { code: script, slot: 1, name: script_name, auto: true, electron: true }, { promise: true });
     })
 }
+
+
 
 function tick() {
     if (me.rip) respawn()
