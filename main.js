@@ -4,14 +4,6 @@ let mob = null
 const base_url = "https://raw.githubusercontent.com/julienduranleau-sandbox/adventureland/master/main.js"
 const script_name = "Priest"
 
-function update_script() {
-    fetch(base_url).then(resp => resp.text()).then(script => {
-        parent.api_call("save_code", { code: script, slot: 1, name: script_name, auto: true, electron: true }, { promise: true });
-    })
-}
-
-
-
 function tick() {
     if (me.rip) respawn()
 
@@ -49,6 +41,12 @@ function tick() {
 
         //set_message("Attack");
     }
+}
+
+function update_script() {
+    fetch(base_url + "?" + Date.now()).then(resp => resp.text()).then(script => {
+        parent.api_call("save_code", { code: script, slot: 1, name: script_name, auto: true, electron: true }, { promise: true });
+    })
 }
 
 setInterval(tick, 1000 / 4)
