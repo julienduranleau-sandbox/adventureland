@@ -43,7 +43,7 @@ function tick() {
     }
 }
 
-function update_script() {
+function up() {
     fetch(base_url + "?" + Date.now()).then(resp => resp.text()).then(script => {
         parent.api_call("save_code", { code: script, slot: 1, name: script_name, auto: true, electron: true }, { promise: true });
         load_code(script_name)
