@@ -29,9 +29,9 @@ window.tick_interval = setInterval(() => {
     loot()
 
     run_quest([
-        "phoenix",
-        // "snowman",
-        // "turtles",
+        //"phoenix",
+        "snowman",
+        "turtles",
         // "bats_alternative",
         // "bats",
     ])

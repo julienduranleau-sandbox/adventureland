@@ -25,8 +25,8 @@ window.tick_interval = setInterval(() => {
     // }
 
     run_quest([
-        // "snowman",
-        // "squigs",
+        "snowman",
+        //"squigs",
         "assist_iris",
         // "snakes"
     ])

@@ -50,7 +50,7 @@ window.tick_interval = setInterval(() => {
      *  - Will probably require the use of change_target and stuff instead of mob
      */
     run_quest([
-        // "snowman",
+        "snowman",
         "assist_iris",
         // "squigs",
         // "snakes"
