@@ -1,4 +1,4 @@
-import { smart_target_and_attack, smart_attack, distance_sq } from 'http://localhost/adventureland/utils.js'
+import { smart_target_and_attack, smart_attack, distance_sq } from 'http://68.107.27.193/delphes/utils.js'
 
 const quests = {
     snowman: {

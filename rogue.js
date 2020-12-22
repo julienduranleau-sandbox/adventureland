@@ -1,5 +1,5 @@
-import { run_quest } from 'http://localhost/adventureland/quests.js'
-import * as utils from 'http://localhost/adventureland/utils.js'
+import { run_quest } from 'http://68.107.27.193/delphes/quests.js'
+import * as utils from 'http://68.107.27.193/delphes/utils.js'
 
 window.me = character
 window.mob = null
