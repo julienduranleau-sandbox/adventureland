@@ -5,14 +5,18 @@ window.me = character
 window.mob = null
 window.active_quest = null
 window.quest_data = null
+window.is_tank = false
 
-utils.form_party()
+on_party_request = name => accept_party_request(name)
+on_party_invite = name => accept_party_invite(name)
 
 window.tick_interval = setInterval(() => {
     if (me.rip) {
         active_quest = null
         respawn()
     }
+
+    utils.form_party()
 
     use_hp_or_mp()
     loot()
@@ -23,12 +27,21 @@ window.tick_interval = setInterval(() => {
     //         use_skill("invis", me)
     //     }
     // }
+    // 
+
+    /*
+    let t = get_target_of(get_player("Iriss"))
+    if (can_attack(t)) {
+        attack(t)
+    }
+    */
 
     run_quest([
+        "grinch",
         "snowman",
-        //"squigs",
+//        "candy_canes",
         "assist_iris",
-        // "snakes"
+//        "snakes"
     ])
 
     set_message(active_quest)

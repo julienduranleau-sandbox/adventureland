@@ -5,13 +5,17 @@ window.me = character
 window.mob = null
 window.active_quest = null
 window.quest_data = null
+window.is_tank = false
 
-utils.form_party()
+on_party_request = name => accept_party_request(name)
+on_party_invite = name => accept_party_invite(name)
 
 window.tick_interval = setInterval(() => {
     let iris = get_player("Iriss")
     let luna = get_player("Lunaa")
 
+    utils.form_party()
+    
     if (me.rip) {
         active_quest = null
         respawn()
@@ -19,22 +23,17 @@ window.tick_interval = setInterval(() => {
 
     loot()
 
-    if (can_use("heal")) {
-        // Heal when below 75%
-        if (me.hp / me.max_hp < 0.75) {
-            heal(me)
-        }
-        if (iris && iris.hp / iris.max_hp < 0.9) {
+    if (!is_on_cooldown("heal")) {
+        if (iris && iris.hp / iris.max_hp < 0.85) {
             heal(iris)
-        }
-        if (luna && luna.hp / luna.max_hp < 0.75) {
+        } else if (me.hp / me.max_hp < 0.75) {
+            heal(me)
+        } else if (luna && luna.hp / luna.max_hp < 0.75) {
             heal(luna)
         }
     }
 
-    if (me.mp - 300 < me.max_mp) {
-        use_hp_or_mp()
-    }
+    use_hp_or_mp()
 
     if (me.mp === me.max_mp) {
         if (can_use("curse") && mob && !mob.dead) {
@@ -42,18 +41,13 @@ window.tick_interval = setInterval(() => {
         }
     }
 
-    /**
-     * TODO
-     * 
-     * Replace active quest with a custom assist on party with party member list
-     * Follow, heal, buff, assist target
-     *  - Will probably require the use of change_target and stuff instead of mob
-     */
     run_quest([
+        "grinch",
         "snowman",
+//        "candy_canes",
         "assist_iris",
         // "squigs",
-        // "snakes"
+        //"bats"
     ])
 
     set_message(active_quest)
