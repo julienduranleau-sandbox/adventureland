@@ -1,5 +1,6 @@
 import { run_quest } from 'http://68.107.27.193/delphes/quests.js'
 import * as utils from 'http://68.107.27.193/delphes/utils.js'
+import * as comms from 'http://68.107.27.193/delphes/comms.js'
 
 window.me = character
 window.mob = null
@@ -7,19 +8,7 @@ window.active_quest = null
 window.quest_data = null
 window.is_tank = true
 
-on_party_request = name => accept_party_request(name)
-on_party_invite = name => accept_party_invite(name)
-
-me.on("cm", data => {
-    if (data.message.type === "position_request") {
-        send_cm(data.name, {
-            type: "position_answer",
-            x: me.real_x,
-            y: me.real_y,
-            map: me.map
-        })
-    }
-})
+comms.init_comms()
 
 window.tick_interval = setInterval(() => {
     clear_drawings()
@@ -35,14 +24,14 @@ window.tick_interval = setInterval(() => {
     loot()
 
     run_quest([
-        "grinch",
+        "grinch_active",
         "snowman",
 //        "candy_canes",
-        "vampire",
-        "phoenix",
-        //"ghosts",
+        "vampire_passive",
+        "phoenix_passive",
+        "ghosts",
         // "bats_alternative",
-        "bats",
+        //"bats",
 //        "snakes",
         //"water_spirits",
     ])

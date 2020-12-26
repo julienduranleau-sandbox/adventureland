@@ -1,6 +1,13 @@
-import { sleep } from 'http://68.107.27.193/delphes/utils.js'
+import * as comms from 'http://68.107.27.193/delphes/comms.js'
+import { sleep, inventory_space } from 'http://68.107.27.193/delphes/utils.js'
 
 window.me = character
+window.carrier_requests = []
+window.recovering_items = false
+
+const bank_names = ["items0", "items1"]
+
+comms.init_comms()
 
 const items_to_sell = [
 
@@ -8,9 +15,20 @@ const items_to_sell = [
 
 const items_to_upgrade = [
     { name: "ornamentstaff", level: 7 },
-    { name: "candycanesword", level: 7 },
+//    { name: "candycanesword", level: 7 },
     { name: "merry", level: 7 },
-    { name: "mittens", level: 6 },
+    { name: "cclaw", level: 7 },
+    { name: "mittens", level: 7 },
+    { name: "wattire", level: 7 },
+    { name: "wcap", level: 7 },
+    { name: "wbreaches", level: 7 },
+    { name: "wshoes", level: 7 },
+    { name: "xmaspants", level: 7 },
+    { name: "xmasshoes", level: 7 },
+    { name: "helmet1", level: 7 },
+    { name: "shoes1", level: 7 },
+    { name: "pants1", level: 7 },
+    // { name: "xmashat", level: 7 },
 ]
 
 const items_to_compound = [
@@ -21,55 +39,75 @@ const items_to_compound = [
     { name: "strring", level: 3 },
     { name: "intring", level: 3 },
     { name: "vitring", level: 3 },
-    { name: "strearing", level: 3 },
-    { name: "dexearing", level: 3 },
-    { name: "intearing", level: 3 },
-    { name: "vitearing", level: 3 },
+    { name: "strearring", level: 3 },
+    { name: "dexearring", level: 3 },
+    { name: "intearring", level: 3 },
+    { name: "vitearring", level: 3 },
+    { name: "intamulet", level: 3 },
+    { name: "dexamulet", level: 3 },
+    { name: "stramulet", level: 3 },
+    { name: "vitamulet", level: 3 },
     { name: "wbook0", level: 2 },
 ]
 
 tick()
 async function tick() {
     await compound_items()
-//    await sell_items()
+    await sell_items()
     await upgrade_items()
+    // await handle_carrier_requests()
+    game_log("Done")
+    await sleep(2)
 
     setTimeout(tick, 1000/4)
 }
 
-async function move_to_bank() {
-    set_message("Banking")
-    if (me.bank === undefined || me.bank === null) {
-        await smart_move({x: 0, y: -76, map:"bank"})
-    }
-}
 
-async function deposit_gold(amount) {
-    await move_to_bank()
-    bank_store(amount)
-}
+async function handle_carrier_requests() {
+    if (carrier_requests.length === 0) return
 
-async function withdraw_gold(amount) {
-    await move_to_bank()
-    bank_store(amount)
-}
+    set_message("Carrier")
 
-async function store_inventory() {
-    await move_to_bank()
+    return new Promise(async (character_done) => {
+        await store_inventory()
+        let name = carrier_requests.shift()
+        set_message(`Carrier ${name}`)
 
-    for (let i = 0; i < me.items.length; i++) {
-        for (let bank_name in me.bank) {
-            if (bank_name.indexOf("items") !== 0) continue
-            if (me.bank[bank_name].filter(item => item === null).length === 0) continue
+        comms.once("carrier_request_done", data => {
+            if (data.name === name) {
+                character_done()
+                clearInterval(follow_interval)
+            }
+        })
 
-            await parent.socket.emit("bank", { operation: "swap", pack: bank_name, str: -1, inv: i});
-        }
-    }
+        let waiting_for_position = false
 
-    await sleep(1)
+        let follow_interval = setInterval(() => {
+            let player = get_player(name)
+            if (player) {
+                smart_move(player)
+                send_cm(name, { type: "carrier_arrived" })
+            } else if(!waiting_for_position) {
+                waiting_for_position = true
+                comms.once("position_answer", async (data) => {
+                    if (data.name === name) {
+                        await smart_move({
+                            x: data.message.x,
+                            y: data.message.y,
+                            map: data.message.map
+                        })
+                        waiting_for_position = false
+                    }
+                })
+                send_cm(name, { type: "position_request" })
+            }
+        }, 2000)
+    })
 }
 
 async function compound_items() {
+    set_message("Compounding")
+
     await move_to_bank()
 
     bank_withdraw(me.bank.gold)
@@ -78,38 +116,33 @@ async function compound_items() {
 
     let n_items_to_compound = 0
 
-    set_message("Getting items")
-    // retrieve items from bank
-    for (let bank_name in me.bank) {
-        let bank_items = me.bank[bank_name]
-
-        for (let i = 0; i < bank_items.length; i++) {
-
-            for (let item_to_compound of items_to_compound) {
-                if (bank_items[i] === null) continue
-
-                if (bank_items[i].name === item_to_compound.name && bank_items[i].level < item_to_compound.level) {
-                    await retrieve(bank_name, i)
-                    n_items_to_compound += 1
-                }
-
-                if (["cscroll0", "cscroll1", "cscroll2"].includes(bank_items[i].name)) {
-                    await retrieve(bank_name, i)
-                }
-
-                if (inventory_space() < 5) break
-                else console.log(inventory_space())
-            }
-            if (inventory_space() < 5) break
-        }
-        if (inventory_space() < 5) break
+    let all_items = me.items.slice()
+    
+    for (let bank_name of bank_names) {
+        all_items = all_items.concat(me.bank[bank_name])
     }
 
-    if (n_items_to_compound === 0) return
+    let compoundable_items = get_compoundable_items_by_level(all_items)
+
+    if (Object.values(compoundable_items).length === 0) return
+
+    set_message("Comp: Getting items")
+
+    await retrieve(item => {
+        if (["cscroll0", "cscroll1", "cscroll2"].includes(item.name)) {
+            return true
+        }
+        if (items_to_compound.filter(item_to_compound => item_to_compound.name === item.name).length !== 0) {
+            if (compoundable_items[`${item.name}-${item.level}`]) {
+                return true
+            }
+        }
+        return false
+    }, 3)
 
     await move_outside()
 
-    set_message("Compounding")
+    set_message("Comp: Merge")
 
     let done_compounding = false
 
@@ -139,11 +172,12 @@ async function compound_items() {
 async function sell_items() {
 }
 
-function get_compoundable_items_by_level() {
+function get_compoundable_items_by_level(items = null, filter_minimum_3 = true) {
     let list = {}
+    if (!items) items = me.items
 
-    for (let i = 0; i < me.items.length; i++) {
-        let item = me.items[i]
+    for (let i = 0; i < items.length; i++) {
+        let item = items[i]
         if (item === null) continue
         if (items_to_compound.filter(item_type => item_type.name === item.name).length === 0) continue
 
@@ -151,10 +185,17 @@ function get_compoundable_items_by_level() {
         else list[`${item.name}-${item.level}`].push(i)
     }
 
+    for (let key in list) {
+        if (list[key].length < 3) {
+            delete list[key]
+        }
+    }
+
     return list
 }
 
 async function upgrade_items() {
+    set_message("Upgrading")
     await move_to_bank()
 
     bank_withdraw(me.bank.gold)
@@ -163,39 +204,32 @@ async function upgrade_items() {
 
     let n_items_to_upgrade = 0
 
-    set_message("Getting items")
-    // retrieve items from bank
-    for (let item_to_upgrade of items_to_upgrade) {
-        for (let bank_name in me.bank) {
-            let bank_items = me.bank[bank_name]
+    set_message("Upgrading: getting items")
 
-            for (let i = 0; i < bank_items.length; i++) {
-                if (bank_items[i] === null) continue
-
-                if (bank_items[i].name === item_to_upgrade.name && bank_items[i].level < item_to_upgrade.level) {
-                    await retrieve(bank_name, i)
-                    n_items_to_upgrade += 1
-                }
-
-                if (["scroll0", "scroll1", "scroll2"].includes(bank_items[i].name)) {
-                    await retrieve(bank_name, i)
-                }
-
-                if (inventory_space() < 5) break
-            }
-            if (inventory_space() < 5) break
+    retrieve(item => {
+        if (["scroll0", "scroll1", "scroll2"].includes(item.name)) {
+            return true
         }
-        if (inventory_space() < 5) break
-    }
 
-    if (n_items_to_upgrade === 0) {
-        console.log("No items to compound")
-        return
-    }
+        let item_to_upgrade = items_to_upgrade.filter(item_to_upgrade => item_to_upgrade.name === item.name)
+
+        if (item_to_upgrade.length > 0) {
+            item_to_upgrade = item_to_upgrade[0]
+
+            if (item.name === item_to_upgrade.name && item.level < item_to_upgrade.level) {
+                n_items_to_upgrade += 1
+                return true
+            }
+        }
+
+        return false
+    }, 3)
+
+    if (n_items_to_upgrade === 0) return
 
     await move_outside()
 
-    set_message("Upgrading")
+    set_message("Upgrading: crafting")
 
     let done_upgrading = false
 
@@ -220,24 +254,57 @@ async function upgrade_items() {
             }
         }
     }
-
-    set_message("Done upgrading")
 }
 
-async function retrieve(bank_name, bank_index, inventory_index = -1) {
-    parent.socket.emit("bank", { operation: "swap", pack: bank_name, str: bank_index, inv: inventory_index })
-    await sleep(0.2)
-}
-
-function inventory_space() {
-    return me.items.filter(item => item === null).length
+async function retrieve(filter_fn, keep_n_empty_slots = 0) {
+    for (let bank_name of bank_names) {
+        for (let i = 0; i < me.bank[bank_name].length; i++) {
+            if (me.bank[bank_name][i] === null) continue
+            if (filter_fn(me.bank[bank_name][i])) {
+                parent.socket.emit("bank", { operation: "swap", pack: bank_name, str: i, inv: -1 })
+                await sleep(0.2)
+                if (inventory_space() <= keep_n_empty_slots) {
+                    return
+                }
+            }
+        }
+    }
 }
 
 async function move_outside() {
-    set_message("Going outside")
     await smart_move({ x: -217, y: -50, map: "main" })
 }
 
+async function move_to_bank() {
+    if (me.bank === undefined || me.bank === null) {
+        await smart_move({x: 0, y: -76, map:"bank"})
+    }
+}
+
+async function deposit_gold(amount) {
+    if (character.gold === 0) return
+
+    await move_to_bank()
+    bank_store(amount)
+}
+
+async function withdraw_gold(amount) {
+    await move_to_bank()
+    bank_store(amount)
+}
+
+async function store_inventory() {
+    if (inventory_space() === me.items.length) return
+
+    await move_to_bank()
+
+    for (let i = 0; i < me.items.length; i++) {
+        if (me.items[i]) {
+            bank_store(i)
+            await sleep(0.1)
+        }
+    }
+}
 /*
 craft
 compound

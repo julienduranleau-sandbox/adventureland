@@ -1,6 +1,7 @@
 export function sleep(sec) {
     return new Promise(resolve => setTimeout(resolve, sec * 1000))
 }
+
 export function form_party() {
     if (!me.party) {
         send_party_request("D3lphes")
@@ -12,7 +13,7 @@ export function smart_target_and_attack(monster_filter_list, use_formation = fal
         monster_filter_list = [monster_filter_list]
     }
 
-    if (!mob || mob.dead) {
+    if (!mob || mob.dead || !mob.target) {
         for (let monster_filter of monster_filter_list) {
             if (!mob || mob.dead) {
                 mob = get_nearest_monster(monster_filter)
@@ -59,11 +60,12 @@ function smart_attack_formation(monster, kill_safespot) {
 
     } else {
         const tank = get_player("Iriss")
+        const angle = Math.atan2(monster.y - tank.y, monster.x - tank.x)
 
         if (me.ctype === "priest" || me.ctype === "wizard" || me.ctype === "ranger") {
-            move(monster.real_x - (monster.real_x - tank.real_x) * 2.5, monster.real_y - (monster.y - tank.real_y) * 2.5)
+            move(tank.x - Math.cos(angle) * 30, tank.y - Math.sin(angle) * 30)
         } else {
-            move(monster.real_x - (monster.real_x - tank.real_x) * -1, monster.real_y - (monster.y - tank.real_y) * -1)
+            move(tank.x + Math.cos(angle + Math.PI/3) * 40, tank.y + Math.sin(angle + Math.PI/3) * 30)
         }
 
         if (can_attack(monster)) {
@@ -96,3 +98,7 @@ export function distance_sq(entity1, entity2) {
     return (entity2.real_x - entity1.real_x) * (entity2.real_x - entity1.real_x) + (entity2.real_y - entity1.real_y) * (entity2.real_y - entity1.real_y)
 }
 
+export function inventory_space(inventory = null) {
+    if (inventory) return inventory.filter(slot => slot === null).length
+    else return me.items.filter(slot => slot === null).length
+}

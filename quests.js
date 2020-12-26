@@ -91,22 +91,32 @@ const quests = {
         }
     },
 
+
     ghosts: {
         init() {
-            let ghost_mob = get_nearest_monster({ type: "ghost" })
-            if (!ghost_mob) {
-                smart_move({ x: 534, y: -1064, map: "halloween" })
-            }
+            smart_move({ x: 534, y: -1064, map: "halloween" })
         },
         run() {
-            smart_target_and_attack({ type: "ghost" })
-            if (mob && mob.mtype === "ghost") {
-                move(534, -1064)
+            //smart_target_and_attack({ type: "ghost" }, true, { x: 534, y: -1064 })
+            smart_target_and_attack({ type: "ghost" }, true)
+        }
+    },
+
+    phoenix_active: {
+        init() {
+        },
+        run() {
+            let phoenix = get_nearest_monster({type: "phoenix"})
+
+            if (phoenix) {
+                smart_target_and_attack({ type: "phoenix" }, true)
+            } else {
+                smart_move("phoenix")
             }
         }
     },
 
-    phoenix: {
+    phoenix_passive: {
         condition() {
             return get_nearest_monster({ type: "phoenix", max_att: 400 }) !== null
             //return G.maps.main.monsters.filter(monster => monster.type === "phoenix").length > 0
@@ -119,7 +129,7 @@ const quests = {
         }
     },
 
-    vampire: {
+    vampire_passive: {
         condition() {
             return get_nearest_monster({ type: "mvampire", max_att: 400 }) !== null
             //return G.maps.cave.monsters.filter(monster => monster.type === "mvampire").length > 0
@@ -134,7 +144,7 @@ const quests = {
 
     candy_canes: {
         condition() {
-            return me.items.filter(item => item !== null && item.name === "candycane").length > 0 && me.items.filter(item => item === null).length > 0
+            return locate_item("candycane") > -1 && me.items.filter(item => item === null).length > 0
         },
         init() {
             smart_move(find_npc("santa"))
@@ -142,15 +152,51 @@ const quests = {
         run() {
             for (let i = 0; i < me.items.length; i++) {
                 if (me.items[i].name === "candycane") {
-                    const candycane_inv_index = i
-                    exchange(candycane_inv_index)
+                    exchange(i)
                     break
                 }
             }
         }
     },
 
-    grinch: {
+    mistletoes: {
+        condition() {
+            return locate_item("mistletoe") > -1 && me.items.filter(item => item === null).length > 0
+        },
+        init() {
+            smart_move({ x: 94, y: -166, map: "winter_inn" })
+        },
+        run() {
+            for (let i = 0; i < me.items.length; i++) {
+                if (me.items[i].name === "mistletoe") {
+                    exchange(i)
+                    break
+                }
+            }
+        }
+    },
+
+    grinch_passive: {
+        condition() {
+            let time = new Date()
+            let spawn = new Date(parent.S.grinch.spawn)
+            let timer = (spawn - time) / 1000
+
+            let timer_ok = timer < 60 || parent.S.grinch.live === true
+            let grinch_nearby = get_nearest_monster({ type: "grinch"})
+
+            return timer_ok && grinch_nearby
+        },
+        init() {
+        },
+        run() {
+            let grinch_mob = get_nearest_monster({ type: "grinch"})
+
+            smart_target_and_attack({ type: "grinch" })
+        }
+    },
+
+    grinch_active: {
         condition() {
             let time = new Date()
             let spawn = new Date(parent.S.grinch.spawn)

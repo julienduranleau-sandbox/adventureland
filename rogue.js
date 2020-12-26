@@ -1,5 +1,6 @@
 import { run_quest } from 'http://68.107.27.193/delphes/quests.js'
 import * as utils from 'http://68.107.27.193/delphes/utils.js'
+import * as comms from 'http://68.107.27.193/delphes/comms.js'
 
 window.me = character
 window.mob = null
@@ -7,8 +8,7 @@ window.active_quest = null
 window.quest_data = null
 window.is_tank = false
 
-on_party_request = name => accept_party_request(name)
-on_party_invite = name => accept_party_invite(name)
+comms.init_comms()
 
 window.tick_interval = setInterval(() => {
     if (me.rip) {
@@ -37,9 +37,10 @@ window.tick_interval = setInterval(() => {
     */
 
     run_quest([
-        "grinch",
+        "grinch_active",
         "snowman",
-//        "candy_canes",
+        // "candy_canes",
+        // "mistletoes",
         "assist_iris",
 //        "snakes"
     ])
