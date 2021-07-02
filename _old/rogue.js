@@ -1,6 +1,6 @@
-import { run_quest } from 'http://68.107.27.193/delphes/quests.js'
-import * as utils from 'http://68.107.27.193/delphes/utils.js'
-import * as comms from 'http://68.107.27.193/delphes/comms.js'
+import { run_quest } from './quests.js'
+import * as utils from './utils.js'
+import * as comms from './comms.js'
 
 window.me = character
 window.mob = null
@@ -42,7 +42,7 @@ window.tick_interval = setInterval(() => {
         // "candy_canes",
         // "mistletoes",
         "assist_iris",
-//        "snakes"
+        //        "snakes"
     ])
 
     set_message(active_quest)

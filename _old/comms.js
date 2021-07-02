@@ -1,4 +1,4 @@
-import { inventory_space } from 'http://68.107.27.193/delphes/utils.js'
+import { inventory_space } from './utils.js'
 
 let listeners = {
 
@@ -70,7 +70,7 @@ export function init_comms() {
             map: me.map
         })
     })
-    
+
     on("carrier_request", data => {
         if (["D3lphes", "Iriss", "Lunaa"].includes(data.name)) {
             if (carrier_requests.indexOf(data.name === -1)) {

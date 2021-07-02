@@ -1,67 +1,64 @@
-import * as comms from 'http://68.107.27.193/delphes/comms.js'
-import { sleep, inventory_space } from 'http://68.107.27.193/delphes/utils.js'
+import { sleep, inventory_space } from './utils.js'
+import { party_members, bank_names, items_to_sell, items_to_upgrade, items_to_compound } from "./config.js"
 
-window.me = character
 window.carrier_requests = []
 window.recovering_items = false
 
-const bank_names = ["items0", "items1"]
+for (let character_name of party_members) {
+    send_party_request(character_name)
+}
 
-comms.init_comms()
+setInterval(function () {
+    use_hp_or_mp()
+    mluck_spam()
+}, 600)
 
-const items_to_sell = [
+routine()
 
-]
-
-const items_to_upgrade = [
-    { name: "ornamentstaff", level: 7 },
-//    { name: "candycanesword", level: 7 },
-    { name: "merry", level: 7 },
-    { name: "cclaw", level: 7 },
-    { name: "mittens", level: 7 },
-    { name: "wattire", level: 7 },
-    { name: "wcap", level: 7 },
-    { name: "wbreaches", level: 7 },
-    { name: "wshoes", level: 7 },
-    { name: "xmaspants", level: 7 },
-    { name: "xmasshoes", level: 7 },
-    { name: "helmet1", level: 7 },
-    { name: "shoes1", level: 7 },
-    { name: "pants1", level: 7 },
-    // { name: "xmashat", level: 7 },
-]
-
-const items_to_compound = [
-    { name: "hpbelt", level: 3 },
-    { name: "hpamulet", level: 3 },
-    { name: "ringsj", level: 3 },
-    { name: "dexring", level: 3 },
-    { name: "strring", level: 3 },
-    { name: "intring", level: 3 },
-    { name: "vitring", level: 3 },
-    { name: "strearring", level: 3 },
-    { name: "dexearring", level: 3 },
-    { name: "intearring", level: 3 },
-    { name: "vitearring", level: 3 },
-    { name: "intamulet", level: 3 },
-    { name: "dexamulet", level: 3 },
-    { name: "stramulet", level: 3 },
-    { name: "vitamulet", level: 3 },
-    { name: "wbook0", level: 2 },
-]
-
-tick()
-async function tick() {
-    await compound_items()
+async function routine() {
+    await assist_party()
     await sell_items()
+    await compound_items()
     await upgrade_items()
     // await handle_carrier_requests()
     game_log("Done")
     await sleep(2)
-
-    setTimeout(tick, 1000/4)
+    routine()
 }
 
+async function assist_party() {
+    set_message("Carrier")
+
+    let party = get_party()
+
+    if (inventory_space() !== character.items.length) {
+        await move_to_bank()
+        bank_deposit(character.gold)
+        await store_inventory()
+    }
+
+    for (let name of party_members) {
+        if (!party[name]) continue
+
+        set_message("Carrier: " + name)
+        await smart_move(party[name]) // x, y, map info stored in party member object
+        send_cm(name, "carrier_arrived")
+        console.log("CM Sent to " + name)
+        await sleep(10)
+
+        if (inventory_space() === 0) {
+            use_skill("use_town"); await sleep(8)
+            await move_to_bank()
+            bank_deposit(character.gold)
+            await store_inventory()
+        }
+    }
+
+    use_skill("use_town"); await sleep(8)
+    await move_to_bank()
+    bank_deposit(character.gold)
+    await store_inventory()
+}
 
 async function handle_carrier_requests() {
     if (carrier_requests.length === 0) return
@@ -87,7 +84,7 @@ async function handle_carrier_requests() {
             if (player) {
                 smart_move(player)
                 send_cm(name, { type: "carrier_arrived" })
-            } else if(!waiting_for_position) {
+            } else if (!waiting_for_position) {
                 waiting_for_position = true
                 comms.once("position_answer", async (data) => {
                     if (data.name === name) {
@@ -109,20 +106,16 @@ async function compound_items() {
     set_message("Compounding")
 
     await move_to_bank()
-
-    bank_withdraw(me.bank.gold)
-
+    bank_withdraw(character.bank.gold)
     await store_inventory()
 
-    let n_items_to_compound = 0
+    let all_items = character.items.slice()
 
-    let all_items = me.items.slice()
-    
     for (let bank_name of bank_names) {
-        all_items = all_items.concat(me.bank[bank_name])
+        all_items = all_items.concat(character.bank[bank_name])
     }
 
-    let compoundable_items = get_compoundable_items_by_level(all_items)
+    const compoundable_items = get_compoundable_items_by_level(all_items)
 
     if (Object.values(compoundable_items).length === 0) return
 
@@ -155,7 +148,7 @@ async function compound_items() {
             for (let level = 0; level < item_to_compound.level; level++) {
                 let index = `${item_to_compound.name}-${level}`
                 if (items_by_level[index] && items_by_level[index].length >= 3) {
-                    const grade = item_grade(me.items[items_by_level[index][0]])
+                    const grade = item_grade(character.items[items_by_level[index][0]])
                     if (locate_item(`cscroll${grade}`) === -1) {
                         await buy_with_gold(`cscroll${grade}`, 1)
                     }
@@ -174,7 +167,7 @@ async function sell_items() {
 
 function get_compoundable_items_by_level(items = null, filter_minimum_3 = true) {
     let list = {}
-    if (!items) items = me.items
+    if (!items) items = character.items
 
     for (let i = 0; i < items.length; i++) {
         let item = items[i]
@@ -196,17 +189,16 @@ function get_compoundable_items_by_level(items = null, filter_minimum_3 = true) 
 
 async function upgrade_items() {
     set_message("Upgrading")
+
     await move_to_bank()
-
-    bank_withdraw(me.bank.gold)
-
+    bank_withdraw(character.bank.gold)
     await store_inventory()
 
     let n_items_to_upgrade = 0
 
     set_message("Upgrading: getting items")
 
-    retrieve(item => {
+    await retrieve(item => {
         if (["scroll0", "scroll1", "scroll2"].includes(item.name)) {
             return true
         }
@@ -225,6 +217,8 @@ async function upgrade_items() {
         return false
     }, 3)
 
+    console.log(`${n_items_to_upgrade} items to upgrade`)
+
     if (n_items_to_upgrade === 0) return
 
     await move_outside()
@@ -237,11 +231,11 @@ async function upgrade_items() {
         done_upgrading = true
 
         for (let item_to_upgrade of items_to_upgrade) {
-            for (let i = 0; i < me.items.length; i++) {
-                if (me.items[i] === null) continue
+            for (let i = 0; i < character.items.length; i++) {
+                if (character.items[i] === null) continue
 
-                if (me.items[i].name === item_to_upgrade.name && me.items[i].level < item_to_upgrade.level) {
-                    const grade = item_grade(me.items[i])
+                if (character.items[i].name === item_to_upgrade.name && character.items[i].level < item_to_upgrade.level) {
+                    const grade = item_grade(character.items[i])
 
                     if (locate_item(`scroll${grade}`) === -1) {
                         await buy_with_gold(`scroll${grade}`, 1)
@@ -258,9 +252,9 @@ async function upgrade_items() {
 
 async function retrieve(filter_fn, keep_n_empty_slots = 0) {
     for (let bank_name of bank_names) {
-        for (let i = 0; i < me.bank[bank_name].length; i++) {
-            if (me.bank[bank_name][i] === null) continue
-            if (filter_fn(me.bank[bank_name][i])) {
+        for (let i = 0; i < character.bank[bank_name].length; i++) {
+            if (character.bank[bank_name][i] === null) continue
+            if (filter_fn(character.bank[bank_name][i])) {
                 parent.socket.emit("bank", { operation: "swap", pack: bank_name, str: i, inv: -1 })
                 await sleep(0.2)
                 if (inventory_space() <= keep_n_empty_slots) {
@@ -276,8 +270,8 @@ async function move_outside() {
 }
 
 async function move_to_bank() {
-    if (me.bank === undefined || me.bank === null) {
-        await smart_move({x: 0, y: -76, map:"bank"})
+    if (character.bank === undefined || character.bank === null) {
+        await smart_move({ x: 0, y: -76, map: "bank" })
     }
 }
 
@@ -294,15 +288,33 @@ async function withdraw_gold(amount) {
 }
 
 async function store_inventory() {
-    if (inventory_space() === me.items.length) return
+    if (inventory_space() === character.items.length) return
 
     await move_to_bank()
 
-    for (let i = 0; i < me.items.length; i++) {
-        if (me.items[i]) {
+    for (let i = 0; i < character.items.length; i++) {
+        if (character.items[i]) {
             bank_store(i)
             await sleep(0.1)
         }
+    }
+}
+
+function mluck_spam() {
+    for (let id in parent.entities) {
+        const entity = parent.entities[id]
+
+        if (entity.type !== "character") continue
+        if (entity.npc !== undefined) continue
+        if (distance(character, entity) > 320) continue
+        if (entity.s.mluck && entity.s.mluck.f === character.name) continue
+        if (entity.ctype === "merchant" && entity.name !== character.name) continue
+
+        use_skill("mluck", entity.id)
+        break
+    }
+    for (let i = 0; i < parent.entities.length; i++) {
+        let entity = parent.entities[i]
     }
 }
 /*
